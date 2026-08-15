@@ -216,47 +216,187 @@ function App() {
   };
 
   // Speech recognition
-  const startListening = () => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+const startListening = () => {
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-      setError("Voice recognition is not supported in this browser.");
-      return;
-    }
+  if (!SpeechRecognition) {
+    setError("Voice recognition is not supported in this browser.");
+    return;
+  }
 
-    const recognition = new SpeechRecognition();
+  const recognition = new SpeechRecognition();
 
-    recognition.lang = "en-IN";
-    recognition.continuous = false;
-    recognition.interimResults = false;
+  recognition.lang = "en-IN";
+  recognition.continuous = false;
+  recognition.interimResults = false;
 
-    recognition.onstart = () => {
-      setListening(true);
-      clearMessages();
-    };
-
-    recognition.onresult = (event) => {
-      const text = event.results[0][0].transcript;
-
-      setPatientName((previous) => previous || "");
-
-      setMessage(`You said: "${text}"`);
-
-      speak(`I heard: ${text}`);
-    };
-
-    recognition.onerror = () => {
-      setError("Could not understand your voice. Please try again.");
-    };
-
-    recognition.onend = () => {
-      setListening(false);
-    };
-
-    recognition.start();
+  recognition.onstart = () => {
+    setListening(true);
+    setError("");
+    setMessage("");
   };
 
+  recognition.onresult = (event) => {
+    const text = event.results[0][0].transcript.trim();
+
+    console.log("Voice input:", text);
+
+    setMessage(`You said: "${text}"`);
+
+    const lowerText = text.toLowerCase();
+
+    // -----------------------------
+    // Find doctor
+    // -----------------------------
+    const matchedDoctor = doctors.find((doctor) =>
+      lowerText.includes(
+        doctor.name.toLowerCase().replace("dr. ", "")
+      )
+    );
+
+    if (matchedDoctor) {
+      setDoctorId(String(matchedDoctor.id));
+    }
+
+    // -----------------------------
+    // Find patient name
+    // -----------------------------
+    const nameMatch = text.match(
+      /(?:my name is|my name's|i am|i'm|this is)\s+([a-zA-Z]+)/i
+    );
+
+    let detectedName = "";
+
+    if (nameMatch) {
+      const spokenName = nameMatch[1].trim();
+      const normalizedName = spokenName.toLowerCase();
+
+      // -----------------------------------------
+      // Correct common speech-recognition errors
+      // for "Frenita"
+      // -----------------------------------------
+      const nameCorrections = {
+        pranita: "Frenita",
+        pranitha: "Frenita",
+        prenita: "Frenita",
+        prenitha: "Frenita",
+        frinita: "Frenita",
+        frinitha: "Frenita",
+        frenitha: "Frenita",
+        frenetha: "Frenita",
+        franita: "Frenita"
+      };
+
+      if (nameCorrections[normalizedName]) {
+        detectedName = nameCorrections[normalizedName];
+      } else {
+        // Keep other names exactly as detected
+        detectedName =
+          spokenName.charAt(0).toUpperCase() +
+          spokenName.slice(1).toLowerCase();
+      }
+
+      setPatientName(detectedName);
+
+      console.log("Detected patient name:", detectedName);
+    }
+
+    // -----------------------------
+    // Find time
+    // -----------------------------
+    const timeMatch = text.match(
+      /(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)/i
+    );
+
+    if (timeMatch) {
+      let hour = parseInt(timeMatch[1], 10);
+
+      const minute = timeMatch[2] || "00";
+
+      const period = timeMatch[3]
+        .toLowerCase()
+        .replace(/\./g, "");
+
+      if (period === "pm" && hour !== 12) {
+        hour += 12;
+      }
+
+      if (period === "am" && hour === 12) {
+        hour = 0;
+      }
+
+      const formattedTime =
+        `${String(hour).padStart(2, "0")}:${minute}`;
+
+      setTime(formattedTime);
+
+      console.log("Detected time:", formattedTime);
+    }
+
+    // -----------------------------
+    // Voice confirmation
+    // -----------------------------
+    if (matchedDoctor && timeMatch && detectedName) {
+      speak(
+        `I understood that your name is ${detectedName} and you want an appointment with ${matchedDoctor.name} at ${timeMatch[1]} ${timeMatch[3]}.`
+      );
+
+    } else if (matchedDoctor && timeMatch) {
+      speak(
+        `I understood that you want an appointment with ${matchedDoctor.name} at ${timeMatch[1]} ${timeMatch[3]}.`
+      );
+
+    } else if (matchedDoctor && detectedName) {
+      speak(
+        `I understood that your name is ${detectedName} and you want an appointment with ${matchedDoctor.name}.`
+      );
+
+    } else if (detectedName) {
+      speak(
+        `I understood your name as ${detectedName}.`
+      );
+
+    } else if (matchedDoctor) {
+      speak(
+        `I understood that you want an appointment with ${matchedDoctor.name}.`
+      );
+
+    } else if (timeMatch) {
+      speak(
+        `I understood the requested time as ${timeMatch[1]} ${timeMatch[3]}.`
+      );
+
+    } else {
+      speak(`I heard: ${text}`);
+    }
+  };
+
+  // -----------------------------
+  // Speech recognition error
+  // -----------------------------
+  recognition.onerror = (event) => {
+    console.log(
+      "Speech recognition error:",
+      event.error
+    );
+
+    setListening(false);
+
+    setError(
+      "Could not understand your voice. Please try again."
+    );
+  };
+
+  // -----------------------------
+  // Speech recognition ended
+  // -----------------------------
+  recognition.onend = () => {
+    setListening(false);
+  };
+
+  recognition.start();
+};
   return (
     <div className="app">
       <header className="header">
