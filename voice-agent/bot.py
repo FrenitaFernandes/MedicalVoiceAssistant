@@ -59,7 +59,7 @@ from pipecat.transports.base_transport import (
 
 load_dotenv(override=True)
 
-BACKEND_URL = "http://127.0.0.1:8000"
+BACKEND_URL = "https://medical-voice-backend-a0tc.onrender.com"
 
 
 # ============================================================
