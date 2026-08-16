@@ -1,0 +1,4 @@
+pipecat-ai[runner,deepgram,cartesia,google]
+httpx
+python-dotenv
+loguru
