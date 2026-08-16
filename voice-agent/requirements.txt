@@ -1,4 +1,4 @@
-pipecat-ai[runner,deepgram,cartesia,google]
+pipecat-ai[runner,webrtc,deepgram,cartesia,google]
 httpx
 python-dotenv
 loguru
