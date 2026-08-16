@@ -242,7 +242,7 @@ function App() {
     setMessage("");
 
     window.open(
-      "http://localhost:7860/client/",
+      "https://medicalvoiceassistant.onrender.com/client/",
       "_blank",
       "noopener,noreferrer"
     );
