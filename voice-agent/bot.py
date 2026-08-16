@@ -941,7 +941,13 @@ async def run_bot(
     stt = DeepgramSTTService(
         api_key=os.getenv(
             "DEEPGRAM_API_KEY"
-        )
+        ),
+        settings=DeepgramSTTService.Settings(
+            model="nova-3-general",
+            language="multi",
+            interim_results=True,
+            punctuate=True,
+        ),
     )
 
     # ========================================================

@@ -20,7 +20,9 @@ function App() {
   // Voice
   const [listening, setListening] = useState(false);
 
-  // Load doctors
+  // ============================================================
+  // LOAD DOCTORS
+  // ============================================================
   useEffect(() => {
     fetch(`${API}/doctors/`)
       .then((response) => response.json())
@@ -30,13 +32,17 @@ function App() {
       });
   }, []);
 
-  // Clear messages
+  // ============================================================
+  // CLEAR MESSAGES
+  // ============================================================
   const clearMessages = () => {
     setMessage("");
     setError("");
   };
 
-  // Check availability
+  // ============================================================
+  // CHECK AVAILABILITY
+  // ============================================================
   const checkAvailability = async () => {
     clearMessages();
 
@@ -73,7 +79,9 @@ function App() {
     }
   };
 
-  // Book appointment
+  // ============================================================
+  // BOOK APPOINTMENT
+  // ============================================================
   const bookAppointment = async () => {
     clearMessages();
 
@@ -107,9 +115,11 @@ function App() {
       }
 
       setAppointmentId(data.appointment_id);
+
       setMessage(
         `Appointment booked successfully! Appointment ID: ${data.appointment_id}`
       );
+
       setAvailable(true);
 
       speak(
@@ -122,7 +132,9 @@ function App() {
     }
   };
 
-  // Cancel appointment
+  // ============================================================
+  // CANCEL APPOINTMENT
+  // ============================================================
   const cancelAppointment = async () => {
     clearMessages();
 
@@ -152,6 +164,7 @@ function App() {
       }
 
       setMessage(data.message);
+
       speak("Your appointment has been cancelled successfully.");
     } catch (err) {
       setError("Backend server is not reachable.");
@@ -160,7 +173,9 @@ function App() {
     }
   };
 
-  // Reschedule appointment
+  // ============================================================
+  // RESCHEDULE APPOINTMENT
+  // ============================================================
   const rescheduleAppointment = async () => {
     clearMessages();
 
@@ -192,6 +207,7 @@ function App() {
       }
 
       setMessage(data.message);
+
       speak(
         `Your appointment has been rescheduled to ${data.new_date} at ${data.new_time}.`
       );
@@ -202,7 +218,9 @@ function App() {
     }
   };
 
-  // Text to speech
+  // ============================================================
+  // TEXT TO SPEECH
+  // ============================================================
   const speak = (text) => {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
@@ -215,188 +233,29 @@ function App() {
     }
   };
 
-  // Speech recognition
-const startListening = () => {
-  const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SpeechRecognition) {
-    setError("Voice recognition is not supported in this browser.");
-    return;
-  }
-
-  const recognition = new SpeechRecognition();
-
-  recognition.lang = "en-IN";
-  recognition.continuous = false;
-  recognition.interimResults = false;
-
-  recognition.onstart = () => {
+  // ============================================================
+  // OPEN PIPECAT VOICE ASSISTANT
+  // ============================================================
+  const startListening = () => {
     setListening(true);
     setError("");
     setMessage("");
+
+    window.open(
+      "http://localhost:7860/client/",
+      "_blank",
+      "noopener,noreferrer"
+    );
+
+    // Reset button state after opening Pipecat
+    setTimeout(() => {
+      setListening(false);
+    }, 1000);
   };
 
-  recognition.onresult = (event) => {
-    const text = event.results[0][0].transcript.trim();
-
-    console.log("Voice input:", text);
-
-    setMessage(`You said: "${text}"`);
-
-    const lowerText = text.toLowerCase();
-
-    // -----------------------------
-    // Find doctor
-    // -----------------------------
-    const matchedDoctor = doctors.find((doctor) =>
-      lowerText.includes(
-        doctor.name.toLowerCase().replace("dr. ", "")
-      )
-    );
-
-    if (matchedDoctor) {
-      setDoctorId(String(matchedDoctor.id));
-    }
-
-    // -----------------------------
-    // Find patient name
-    // -----------------------------
-    const nameMatch = text.match(
-      /(?:my name is|my name's|i am|i'm|this is)\s+([a-zA-Z]+)/i
-    );
-
-    let detectedName = "";
-
-    if (nameMatch) {
-      const spokenName = nameMatch[1].trim();
-      const normalizedName = spokenName.toLowerCase();
-
-      // -----------------------------------------
-      // Correct common speech-recognition errors
-      // for "Frenita"
-      // -----------------------------------------
-      const nameCorrections = {
-        pranita: "Frenita",
-        pranitha: "Frenita",
-        prenita: "Frenita",
-        prenitha: "Frenita",
-        frinita: "Frenita",
-        frinitha: "Frenita",
-        frenitha: "Frenita",
-        frenetha: "Frenita",
-        franita: "Frenita"
-      };
-
-      if (nameCorrections[normalizedName]) {
-        detectedName = nameCorrections[normalizedName];
-      } else {
-        // Keep other names exactly as detected
-        detectedName =
-          spokenName.charAt(0).toUpperCase() +
-          spokenName.slice(1).toLowerCase();
-      }
-
-      setPatientName(detectedName);
-
-      console.log("Detected patient name:", detectedName);
-    }
-
-    // -----------------------------
-    // Find time
-    // -----------------------------
-    const timeMatch = text.match(
-      /(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)/i
-    );
-
-    if (timeMatch) {
-      let hour = parseInt(timeMatch[1], 10);
-
-      const minute = timeMatch[2] || "00";
-
-      const period = timeMatch[3]
-        .toLowerCase()
-        .replace(/\./g, "");
-
-      if (period === "pm" && hour !== 12) {
-        hour += 12;
-      }
-
-      if (period === "am" && hour === 12) {
-        hour = 0;
-      }
-
-      const formattedTime =
-        `${String(hour).padStart(2, "0")}:${minute}`;
-
-      setTime(formattedTime);
-
-      console.log("Detected time:", formattedTime);
-    }
-
-    // -----------------------------
-    // Voice confirmation
-    // -----------------------------
-    if (matchedDoctor && timeMatch && detectedName) {
-      speak(
-        `I understood that your name is ${detectedName} and you want an appointment with ${matchedDoctor.name} at ${timeMatch[1]} ${timeMatch[3]}.`
-      );
-
-    } else if (matchedDoctor && timeMatch) {
-      speak(
-        `I understood that you want an appointment with ${matchedDoctor.name} at ${timeMatch[1]} ${timeMatch[3]}.`
-      );
-
-    } else if (matchedDoctor && detectedName) {
-      speak(
-        `I understood that your name is ${detectedName} and you want an appointment with ${matchedDoctor.name}.`
-      );
-
-    } else if (detectedName) {
-      speak(
-        `I understood your name as ${detectedName}.`
-      );
-
-    } else if (matchedDoctor) {
-      speak(
-        `I understood that you want an appointment with ${matchedDoctor.name}.`
-      );
-
-    } else if (timeMatch) {
-      speak(
-        `I understood the requested time as ${timeMatch[1]} ${timeMatch[3]}.`
-      );
-
-    } else {
-      speak(`I heard: ${text}`);
-    }
-  };
-
-  // -----------------------------
-  // Speech recognition error
-  // -----------------------------
-  recognition.onerror = (event) => {
-    console.log(
-      "Speech recognition error:",
-      event.error
-    );
-
-    setListening(false);
-
-    setError(
-      "Could not understand your voice. Please try again."
-    );
-  };
-
-  // -----------------------------
-  // Speech recognition ended
-  // -----------------------------
-  recognition.onend = () => {
-    setListening(false);
-  };
-
-  recognition.start();
-};
+  // ============================================================
+  // UI
+  // ============================================================
   return (
     <div className="app">
       <header className="header">
@@ -409,11 +268,12 @@ const startListening = () => {
           className={`voice-button ${listening ? "listening" : ""}`}
           onClick={startListening}
         >
-          🎤 {listening ? "Listening..." : "Speak"}
+          🎤 {listening ? "Opening AI..." : "Speak"}
         </button>
       </header>
 
       <main className="container">
+        {/* HERO */}
         <section className="hero">
           <div>
             <span className="badge">AI Medical Assistant</span>
@@ -433,8 +293,10 @@ const startListening = () => {
           <div className="hero-icon">🩺</div>
         </section>
 
+        {/* BOOK APPOINTMENT */}
         <section className="card">
           <h2>Book an Appointment</h2>
+
           <p className="subtitle">
             Enter your details and choose your preferred time.
           </p>
@@ -442,6 +304,7 @@ const startListening = () => {
           <div className="form-grid">
             <div className="field full">
               <label>Patient Name</label>
+
               <input
                 type="text"
                 placeholder="Enter patient name"
@@ -528,8 +391,10 @@ const startListening = () => {
           )}
         </section>
 
+        {/* MANAGE APPOINTMENT */}
         <section className="card management-card">
           <h2>Manage Appointment</h2>
+
           <p className="subtitle">
             Cancel or reschedule an existing appointment.
           </p>
@@ -564,9 +429,18 @@ const startListening = () => {
           </div>
         </section>
 
-        {message && <div className="message success-box">✓ {message}</div>}
+        {/* MESSAGES */}
+        {message && (
+          <div className="message success-box">
+            ✓ {message}
+          </div>
+        )}
 
-        {error && <div className="message error-box">⚠ {error}</div>}
+        {error && (
+          <div className="message error-box">
+            ⚠ {error}
+          </div>
+        )}
       </main>
 
       <footer>
