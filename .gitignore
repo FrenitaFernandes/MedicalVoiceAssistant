@@ -1,12 +1,6 @@
-﻿backend/venv/
-frontend/node_modules/
-__pycache__/
-*.pyc
-.env
-*.db
-.vscode/
-
 backend/venv/
 voice-agent/venv/
 .env
-
+__pycache__/
+*.pyc
+backend/medical_voice.db
