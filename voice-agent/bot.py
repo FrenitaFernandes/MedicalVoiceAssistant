@@ -1,25 +1,10 @@
 import os
 import httpx
+from aiortc import RTCIceServer
 
 from dotenv import load_dotenv
 from loguru import logger
 from datetime import datetime
-
-import socket
-
-_original_getaddrinfo = socket.getaddrinfo
-
-def ipv4_only_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-    return _original_getaddrinfo(
-        host,
-        port,
-        socket.AF_INET,
-        type,
-        proto,
-        flags,
-    )
-
-socket.getaddrinfo = ipv4_only_getaddrinfo
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.audio.vad.vad_analyzer import VADParams
@@ -60,6 +45,39 @@ from pipecat.transports.base_transport import (
 load_dotenv(override=True)
 
 BACKEND_URL = "https://medical-voice-backend-a0tc.onrender.com"
+
+async def get_turn_credentials():
+    domain = os.getenv("METERED_APP_DOMAIN")
+    api_key = os.getenv("METERED_API_KEY")
+    
+    if not domain or not api_key:
+        logger.warning("Metered TURN credentials missing. Using STUN only.")
+        return [RTCIceServer(urls=["stun:stun.l.google.com:19302"])]
+        
+    url = f"https://{domain}.metered.live/api/v1/turn/credentials?apiKey={api_key}"
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                servers = []
+                for item in data:
+                    urls = item.get("urls")
+                    username = item.get("username")
+                    credential = item.get("credential")
+                    if username and credential:
+                        servers.append(RTCIceServer(urls=urls, username=username, credential=credential))
+                    else:
+                        servers.append(RTCIceServer(urls=urls))
+                logger.info("Successfully fetched TURN credentials from Metered.")
+                return servers
+            else:
+                logger.error(f"Failed to fetch TURN credentials: HTTP {response.status_code}")
+    except Exception as e:
+        logger.error(f"Exception fetching TURN credentials: {e}")
+        
+    logger.warning("Falling back to Google STUN server.")
+    return [RTCIceServer(urls=["stun:stun.l.google.com:19302"])]
 
 
 # ============================================================
@@ -965,7 +983,7 @@ async def run_bot(
 
 
 
-        # ========================================================
+    # ========================================================
     # AVAILABILITY FUNCTION SCHEMA
     # ========================================================
 
@@ -1678,6 +1696,10 @@ DATE HANDLING
 async def bot(
     runner_args: RunnerArguments,
 ):
+
+    ice_servers = await get_turn_credentials()
+    if hasattr(runner_args, "webrtc_connection") and runner_args.webrtc_connection is not None:
+        runner_args.webrtc_connection.ice_servers = ice_servers
 
     transport_params = {
 
