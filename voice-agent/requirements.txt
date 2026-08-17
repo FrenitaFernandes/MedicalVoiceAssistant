@@ -1,4 +1,4 @@
-pipecat-ai[runner,webrtc,deepgram,cartesia,google]==0.0.108
+pipecat-ai[runner,webrtc,deepgram,cartesia,google]==1.7.0
 httpx
 python-dotenv
 loguru
