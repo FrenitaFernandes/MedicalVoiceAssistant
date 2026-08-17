@@ -58,6 +58,14 @@ async def get_turn_credentials():
     try:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, timeout=5)
+            logger.info(f"Metered API response status: {response.status_code}")
+            try:
+                # Log the raw text, but truncate if it's unexpectedly huge
+                response_body = response.text[:1000] 
+                logger.info(f"Metered API response body: {response_body}")
+            except Exception as e:
+                logger.warning(f"Could not read Metered API response body: {e}")
+                
             if response.status_code == 200:
                 data = response.json()
                 servers = []
@@ -1699,6 +1707,8 @@ async def bot(
 
     ice_servers = await get_turn_credentials()
     if hasattr(runner_args, "webrtc_connection") and runner_args.webrtc_connection is not None:
+        urls_only = [server.urls for server in ice_servers] if ice_servers else []
+        logger.info(f"Injecting ICE servers into webrtc_connection: {urls_only}")
         runner_args.webrtc_connection.ice_servers = ice_servers
 
     transport_params = {
